@@ -1,0 +1,50 @@
+{
+    "model_type": "RandomForestClassifier",
+    "n_estimators": 100,
+    "features": [
+        "accel_mag_mean",
+        "accel_mag_max",
+        "accel_mag_std",
+        "accel_z_delta",
+        "accel_jerk",
+        "gyro_mag_mean"
+    ],
+    "classes": {
+        "0": "Normal Road",
+        "1": "Speed Breaker",
+        "2": "Pothole"
+    },
+    "metrics": {
+        "test_accuracy": 1.0,
+        "test_precision_macro": 1.0,
+        "test_recall_macro": 1.0,
+        "test_f1_macro": 1.0,
+        "confusion_matrix": [
+            [
+                30,
+                0,
+                0
+            ],
+            [
+                0,
+                30,
+                0
+            ],
+            [
+                0,
+                0,
+                30
+            ]
+        ]
+    },
+    "feature_importances": {
+        "accel_mag_mean": 0.0988,
+        "accel_mag_max": 0.2456,
+        "accel_mag_std": 0.2001,
+        "accel_z_delta": 0.1322,
+        "accel_jerk": 0.2377,
+        "gyro_mag_mean": 0.0857
+    },
+    "trained_at": "2026-10-11T19:01:34.757548+00:00",
+    "disclaimer": "Trained on synthetic demonstration data representing simulated physical kinematics. Not calibrated for official municipal paving standards."
+}

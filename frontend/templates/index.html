@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RoadQualityMonitor — Secure Crowdsourced Road Quality & Pothole Detection</title>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet CSS for Interactive OpenStreetMap -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    
+    <!-- Custom Application CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-mark">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
+                        <line x1="8" y1="2" x2="8" y2="18"></line>
+                        <line x1="16" y1="6" x2="16" y2="22"></line>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="app-title">RoadQualityMonitor</h1>
+                    <span class="badge-tag">MUNICIPAL CIVIC-TECH v1.0</span>
+                </div>
+            </div>
+
+            <nav class="nav-menu">
+                <button class="nav-item active" data-tab="tab-overview">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    <span>Dashboard Overview</span>
+                </button>
+                <button class="nav-item" data-tab="tab-map">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                    <span>GIS Heatmap & Clusters</span>
+                </button>
+                <button class="nav-item" data-tab="tab-sensors">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                    <span>Sensor Ingestion & Demo</span>
+                </button>
+                <button class="nav-item" data-tab="tab-detections">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                    <span>Detections Record Log</span>
+                </button>
+                <button class="nav-item" data-tab="tab-security">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                    <span>Security & Cryptography</span>
+                </button>
+                <button class="nav-item" data-tab="tab-viva">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                    <span>Viva Guide & ML Info</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="system-status-indicator">
+                    <span class="status-dot online"></span>
+                    <span class="status-text">Backend Connected</span>
+                </div>
+                <div class="action-btn-row">
+                    <button id="btn-quick-seed" class="btn btn-secondary btn-sm" title="Seed realistic demo clusters">
+                        ⚡ Quick Demo Seed
+                    </button>
+                    <button id="btn-export-csv" class="btn btn-secondary btn-sm" title="Export detections to CSV">
+                        📥 CSV Export
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Pane -->
+        <main class="main-content">
+            <!-- Top App Bar -->
+            <header class="top-bar">
+                <div class="page-title-group">
+                    <h2 id="current-section-title">Municipal Road Quality Dashboard</h2>
+                    <p class="section-subtext">Crowdsourced sensor telemetry &bull; Random Forest AI &bull; DBSCAN Geospatial Clustering &bull; Cryptographic Seals</p>
+                </div>
+                <div class="top-controls">
+                    <button id="btn-refresh-all" class="btn btn-outline" title="Refresh metrics and map">
+                        🔄 Refresh
+                    </button>
+                    <button id="btn-reset-db" class="btn btn-danger-outline" title="Wipe demonstration data">
+                        🗑️ Reset Data
+                    </button>
+                </div>
+            </header>
+
+            <!-- Notification Banner Container -->
+            <div id="alert-container"></div>
+
+            <!-- TAB 1: OVERVIEW -->
+            <section id="tab-overview" class="tab-pane active">
+                <!-- Summary Metrics Grid -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-label">Total Detections</span>
+                            <span class="stat-icon icon-blue">📊</span>
+                        </div>
+                        <div class="stat-value" id="stat-total-detections">0</div>
+                        <div class="stat-sub">Across all road types</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-label">Potholes Detected</span>
+                            <span class="stat-icon icon-red">⚠️</span>
+                        </div>
+                        <div class="stat-value text-danger" id="stat-potholes">0</div>
+                        <div class="stat-sub">Physical hazard impact spikes</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-label">Speed Breakers</span>
+                            <span class="stat-icon icon-yellow">⚡</span>
+                        </div>
+                        <div class="stat-value text-warning" id="stat-speed-breakers">0</div>
+                        <div class="stat-sub">Traffic calming undulations</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-label">Normal Baselines</span>
+                            <span class="stat-icon icon-green">🛣️</span>
+                        </div>
+                        <div class="stat-value text-success" id="stat-normal-roads">0</div>
+                        <div class="stat-sub">Smooth asphalt baseline</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-label">Critical Hotspots</span>
+                            <span class="stat-icon icon-purple">🚨</span>
+                        </div>
+                        <div class="stat-value text-critical" id="stat-critical-count">0</div>
+                        <div class="stat-sub">PDI &ge; 80 / Immediate repair</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-header">
+                            <span class="stat-label">Contributing Vehicles</span>
+                            <span class="stat-icon icon-cyan">🚗</span>
+                        </div>
+                        <div class="stat-value text-info" id="stat-devices">0</div>
+                        <div class="stat-sub">Distinct crowdsourced phones</div>
+                    </div>
+                </div>
+
+                <!-- Dashboard Middle Section: Map Preview & Severity Distribution -->
+                <div class="dashboard-grid-2col">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Live Road Quality GIS Map</h3>
+                            <div class="map-controls-inline">
+                                <span class="badge-pill" id="cluster-count-badge">0 Clusters</span>
+                                <button class="btn btn-xs btn-outline" id="btn-recenter-map">Recenter</button>
+                            </div>
+                        </div>
+                        <div class="card-body no-padding">
+                            <div id="overview-map" class="map-container-preview"></div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Distress & Severity Breakdown</h3>
+                            <span class="badge-tag">PDI Index</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-wrapper">
+                                <canvas id="chart-severity"></canvas>
+                            </div>
+                            <div class="pdi-legend">
+                                <div class="legend-row">
+                                    <span class="legend-dot dot-low"></span>
+                                    <span>Low (0-29): Normal road vibration</span>
+                                    <strong id="legend-low-count">0</strong>
+                                </div>
+                                <div class="legend-row">
+                                    <span class="legend-dot dot-moderate"></span>
+                                    <span>Moderate (30-59): Speed breaker / slight dip</span>
+                                    <strong id="legend-mod-count">0</strong>
+                                </div>
+                                <div class="legend-row">
+                                    <span class="legend-dot dot-high"></span>
+                                    <span>High (60-79): Pothole / repair recommended</span>
+                                    <strong id="legend-high-count">0</strong>
+                                </div>
+                                <div class="legend-row">
+                                    <span class="legend-dot dot-critical"></span>
+                                    <span>Critical (80-100): Confirmed severe hazard</span>
+                                    <strong id="legend-crit-count">0</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Detections & Top Clustered Distress Hotspots -->
+                <div class="dashboard-grid-2col mt-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Top Distress Priority Clusters (DBSCAN)</h3>
+                            <button id="btn-run-dbscan-overview" class="btn btn-xs btn-primary">Re-Run DBSCAN</button>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Cluster</th>
+                                            <th>Center Lat, Lon</th>
+                                            <th>Type</th>
+                                            <th>Detections</th>
+                                            <th>Vehicles</th>
+                                            <th>PDI Score</th>
+                                            <th>Priority</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="top-clusters-tbody">
+                                        <tr><td colspan="7" class="text-center text-muted">No cluster hotspots yet. Seed demo data or send readings.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Recent Sensor Telemetry Stream</h3>
+                            <button class="btn btn-xs btn-outline" id="btn-view-all-detections">View Full Log</button>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Device</th>
+                                            <th>Type</th>
+                                            <th>Confidence</th>
+                                            <th>PDI</th>
+                                            <th>Security</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="recent-detections-tbody">
+                                        <tr><td colspan="6" class="text-center text-muted">No telemetry received yet.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 2: FULL GIS MAP -->
+            <section id="tab-map" class="tab-pane">
+                <div class="card map-full-card">
+                    <div class="card-header map-filter-header">
+                        <div class="map-title-row">
+                            <h3 class="card-title">Geospatial Road Anomaly Map (Leaflet & OSM)</h3>
+                            <span class="subtext-inline">Markers colored by PDI Priority &bull; Circles indicate DBSCAN vehicle consensus clusters</span>
+                        </div>
+                        <div class="filter-controls">
+                            <label>Filter Type:
+                                <select id="map-filter-type" class="form-select">
+                                    <option value="All">All Road Events</option>
+                                    <option value="Pothole">Potholes Only</option>
+                                    <option value="Speed Breaker">Speed Breakers Only</option>
+                                    <option value="Normal Road">Normal Roads Only</option>
+                                </select>
+                            </label>
+                            <label>Priority:
+                                <select id="map-filter-priority" class="form-select">
+                                    <option value="All">All Priorities</option>
+                                    <option value="Critical">Critical (80-100)</option>
+                                    <option value="High">High (60-79)</option>
+                                    <option value="Moderate">Moderate (30-59)</option>
+                                    <option value="Low">Low (0-29)</option>
+                                </select>
+                            </label>
+                            <button id="btn-apply-map-filter" class="btn btn-sm btn-primary">Apply Filter</button>
+                            <button id="btn-reset-map-filter" class="btn btn-sm btn-outline">Reset Filter</button>
+                        </div>
+                    </div>
+                    <div class="card-body no-padding">
+                        <div id="full-gis-map" class="map-container-full"></div>
+                    </div>
+                    <div class="card-footer map-footer-legend">
+                        <div class="legend-badge-item"><span class="marker-dot dot-critical"></span> Critical (&ge;80)</div>
+                        <div class="legend-badge-item"><span class="marker-dot dot-high"></span> High (60-79)</div>
+                        <div class="legend-badge-item"><span class="marker-dot dot-moderate"></span> Moderate (30-59)</div>
+                        <div class="legend-badge-item"><span class="marker-dot dot-low"></span> Low (&lt;30)</div>
+                        <div class="legend-badge-item"><span class="cluster-circle-legend"></span> DBSCAN Cluster Zone</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 3: SENSORS & DEMONSTRATION MODE -->
+            <section id="tab-sensors" class="tab-pane">
+                <div class="dashboard-grid-2col">
+                    <!-- MODE A: LIVE SENSORS -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <h3 class="card-title">Mode A — Smartphone Live Sensor Ingestion</h3>
+                                <div class="card-subtitle">Browser DeviceMotion, DeviceOrientation & Geolocation API</div>
+                            </div>
+                            <span id="live-sensor-status-badge" class="badge-tag tag-neutral">Sensors Inactive</span>
+                        </div>
+                        <div class="card-body">
+                            <p class="instruction-text">
+                                When opened on a mobile device or laptop with sensors over HTTPS/localhost, this reads real hardware accelerometer and GPS readings.
+                            </p>
+
+                            <div class="sensor-readout-grid">
+                                <div class="sensor-metric-box">
+                                    <div class="metric-label">Accel X</div>
+                                    <div class="metric-val" id="live-accel-x">0.00 m/s²</div>
+                                </div>
+                                <div class="sensor-metric-box">
+                                    <div class="metric-label">Accel Y</div>
+                                    <div class="metric-val" id="live-accel-y">0.00 m/s²</div>
+                                </div>
+                                <div class="sensor-metric-box">
+                                    <div class="metric-label">Accel Z (Gravity)</div>
+                                    <div class="metric-val" id="live-accel-z">9.81 m/s²</div>
+                                </div>
+                                <div class="sensor-metric-box">
+                                    <div class="metric-label">Magnitude |a|</div>
+                                    <div class="metric-val font-bold" id="live-accel-mag">9.81 m/s²</div>
+                                </div>
+                                <div class="sensor-metric-box">
+                                    <div class="metric-label">Gyroscope (Rot)</div>
+                                    <div class="metric-val" id="live-gyro">0.00 rad/s</div>
+                                </div>
+                                <div class="sensor-metric-box">
+                                    <div class="metric-label">GPS Lat, Lon</div>
+                                    <div class="metric-val text-xs" id="live-gps">12.9716, 77.5946</div>
+                                </div>
+                            </div>
+
+                            <div class="mt-4">
+                                <div class="btn-group">
+                                    <button id="btn-start-live-sensors" class="btn btn-success">
+                                        ▶️ Start Live Sensor Ingestion
+                                    </button>
+                                    <button id="btn-stop-live-sensors" class="btn btn-secondary" disabled>
+                                        ⏹️ Stop Sensors
+                                    </button>
+                                    <button id="btn-trigger-instant-sample" class="btn btn-outline" disabled>
+                                        📸 Ingest Instant Reading
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div id="sensor-support-info" class="info-alert mt-4">
+                                <strong>Hardware Compatibility Note:</strong> Laptops and desktop PCs without physical IMU motion sensors return null for DeviceMotion. Use <strong>Mode B (Demonstration Mode)</strong> on desktop laptops to simulate road conditions with 100% fidelity.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- MODE B: DEMONSTRATION SIMULATION -->
+                    <div class="card">
+                        <div class="card-header">
+                            <div>
+                                <h3 class="card-title">Mode B — Demonstration & Simulation Generator</h3>
+                                <div class="card-subtitle">Deterministic multi-vehicle road event simulator</div>
+                            </div>
+                            <span class="badge-tag tag-success">Active & Ready</span>
+                        </div>
+                        <div class="card-body">
+                            <p class="instruction-text">
+                                Generate realistic road anomalies without driving. Click a preset or customize parameters to test ML classification, cryptographic sealing, and clustering.
+                            </p>
+
+                            <!-- Quick Simulation Presets -->
+                            <div class="preset-buttons-container mb-4">
+                                <label class="block-label font-bold">1-Click Anomaly Presets:</label>
+                                <div class="preset-btn-grid">
+                                    <button id="btn-preset-pothole" class="btn btn-danger btn-preset">
+                                        💥 Pothole Shock (Peak 22.5 m/s²)
+                                    </button>
+                                    <button id="btn-preset-speedbreaker" class="btn btn-warning btn-preset">
+                                        ⚡ Speed Breaker (Peak 14.1 m/s²)
+                                    </button>
+                                    <button id="btn-preset-normal" class="btn btn-success btn-preset">
+                                        🛣️ Normal Road (Peak 10.1 m/s²)
+                                    </button>
+                                </div>
+                            </div>
+
+                            <form id="form-simulate-event" class="sim-form">
+                                <div class="form-row-2col">
+                                    <div class="form-group">
+                                        <label>Simulated Device ID:</label>
+                                        <input type="text" id="sim-device-id" class="form-control" value="DEV-CAB-101" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Location Preset:</label>
+                                        <select id="sim-location-preset" class="form-control">
+                                            <option value="12.9279,77.6835">Outer Ring Road (Bellandur)</option>
+                                            <option value="12.9601,77.6482">Old Airport Road</option>
+                                            <option value="12.9784,77.6408">Indiranagar 100ft Road</option>
+                                            <option value="12.9352,77.6245">Koramangala 4th Block</option>
+                                            <option value="12.9766,77.5993">Cubbon Park Road</option>
+                                            <option value="custom">Custom Coordinates</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="form-row-2col">
+                                    <div class="form-group">
+                                        <label>Latitude:</label>
+                                        <input type="number" step="0.000001" id="sim-lat" class="form-control" value="12.927900" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Longitude:</label>
+                                        <input type="number" step="0.000001" id="sim-lon" class="form-control" value="77.683500" required>
+                                    </div>
+                                </div>
+
+                                <div class="form-row-2col">
+                                    <div class="form-group">
+                                        <label>Peak Acceleration (m/s²):</label>
+                                        <input type="range" id="sim-peak-slider" min="9.8" max="28.0" step="0.1" value="21.5" class="form-range">
+                                        <div class="slider-val text-right" id="sim-peak-val">21.5 m/s²</div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Gyroscope Rotational Velocity (rad/s):</label>
+                                        <input type="range" id="sim-gyro-slider" min="0.0" max="4.0" step="0.1" value="2.2" class="form-range">
+                                        <div class="slider-val text-right" id="sim-gyro-val">2.2 rad/s</div>
+                                    </div>
+                                </div>
+
+                                <div class="form-actions mt-3">
+                                    <button type="submit" class="btn btn-primary btn-block">
+                                        🚀 Dispatch Telemetry to AI & Crypto Pipeline
+                                    </button>
+                                </div>
+                            </form>
+
+                            <!-- Ingestion Result Live Card -->
+                            <div id="sim-result-card" class="result-card hidden mt-4">
+                                <div class="result-header">
+                                    <span class="font-bold">Latest ML Inference & Cryptographic Output</span>
+                                    <span id="result-badge-type" class="badge-tag">Pothole</span>
+                                </div>
+                                <div class="result-body">
+                                    <div class="result-row">
+                                        <span>AI Classification:</span>
+                                        <strong id="result-event-type">-</strong>
+                                    </div>
+                                    <div class="result-row">
+                                        <span>Model Confidence:</span>
+                                        <strong id="result-confidence">-</strong>
+                                    </div>
+                                    <div class="result-row">
+                                        <span>Pavement Distress Index (PDI):</span>
+                                        <strong id="result-pdi">-</strong>
+                                    </div>
+                                    <div class="result-row">
+                                        <span>Priority Level:</span>
+                                        <span id="result-priority" class="badge-pill">-</span>
+                                    </div>
+                                    <div class="result-row font-mono text-xs">
+                                        <span>SHA-256 Hash:</span>
+                                        <span id="result-hash" class="text-truncate">-</span>
+                                    </div>
+                                    <div class="result-row font-mono text-xs">
+                                        <span>RSA-2048 Signature:</span>
+                                        <span id="result-sig" class="text-truncate">-</span>
+                                    </div>
+                                    <div class="result-row font-mono text-xs">
+                                        <span>Fernet Encrypted Lat:</span>
+                                        <span id="result-enc-lat" class="text-truncate">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 4: DETECTIONS RECORD LOG -->
+            <section id="tab-detections" class="tab-pane">
+                <div class="card">
+                    <div class="card-header detections-toolbar">
+                        <div class="search-box">
+                            <input type="text" id="filter-search-input" class="form-control" placeholder="Search by Device ID, Type, or Priority...">
+                        </div>
+                        <div class="toolbar-dropdowns">
+                            <select id="filter-event-type" class="form-select">
+                                <option value="All">All Event Types</option>
+                                <option value="Pothole">Pothole</option>
+                                <option value="Speed Breaker">Speed Breaker</option>
+                                <option value="Normal Road">Normal Road</option>
+                            </select>
+                            <select id="filter-priority" class="form-select">
+                                <option value="All">All Priorities</option>
+                                <option value="Critical">Critical</option>
+                                <option value="High">High</option>
+                                <option value="Moderate">Moderate</option>
+                                <option value="Low">Low</option>
+                            </select>
+                            <select id="filter-simulated" class="form-select">
+                                <option value="-1">All Sources</option>
+                                <option value="1">Simulated / Demo</option>
+                                <option value="0">Live Hardware</option>
+                            </select>
+                            <button id="btn-recluster-now" class="btn btn-outline" title="Re-run DBSCAN on current records">
+                                🌐 Re-Cluster
+                            </button>
+                            <button id="btn-delete-simulated" class="btn btn-danger-outline" title="Delete only simulated demo records">
+                                🧹 Clear Demo
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="data-table" id="detections-master-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Device ID</th>
+                                        <th>Timestamp</th>
+                                        <th>GPS (Lat, Lon)</th>
+                                        <th>Peak Accel</th>
+                                        <th>Event Type</th>
+                                        <th>Confidence</th>
+                                        <th>PDI Score</th>
+                                        <th>Priority</th>
+                                        <th>Cluster</th>
+                                        <th>Integrity</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="detections-table-tbody">
+                                    <tr><td colspan="12" class="text-center text-muted">Loading detection records...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="card-footer table-footer-bar">
+                        <span id="detections-total-label">Showing 0 detections</span>
+                        <div class="footer-actions">
+                            <button id="btn-download-csv-footer" class="btn btn-sm btn-secondary">📥 Export to CSV</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 5: SECURITY & CRYPTOGRAPHY CENTER -->
+            <section id="tab-security" class="tab-pane">
+                <div class="dashboard-grid-2col">
+                    <!-- Educational Architecture Card -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Cryptographic Architecture (Why & How)</h3>
+                            <span class="badge-tag tag-success">Standard NIST & IETF Algorithms</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="crypto-concept-block">
+                                <div class="concept-title">
+                                    <span class="concept-icon">🔒</span>
+                                    <strong>1. Fernet Symmetric Encryption (AES-128-CBC + HMAC-SHA256)</strong>
+                                </div>
+                                <p class="concept-desc">
+                                    <strong>Purpose:</strong> Protect citizen privacy by encrypting precise GPS coordinates and vehicle hardware identifiers stored in the database.
+                                </p>
+                                <p class="concept-detail">
+                                    Keys are kept in local files (<code>data/keys/secret.key</code>), never exposed to client-side browsers or web logs. Decrypted only when requested by authorized municipal administrators.
+                                </p>
+                            </div>
+
+                            <div class="crypto-concept-block mt-3">
+                                <div class="concept-title">
+                                    <span class="concept-icon">🛡️</span>
+                                    <strong>2. SHA-256 Canonical Hashing (Data Integrity)</strong>
+                                </div>
+                                <p class="concept-desc">
+                                    <strong>Purpose:</strong> Guarantees that neither a malicious actor nor database corruption has altered detection values after acceptance.
+                                </p>
+                                <p class="concept-detail">
+                                    A canonical JSON string of core fields (sorted keys, uniform float rounding) is hashed into a 256-bit hexadecimal digest. Modifying even 1 bit produces an avalanche effect that permanently invalidates the hash.
+                                </p>
+                            </div>
+
+                            <div class="crypto-concept-block mt-3">
+                                <div class="concept-title">
+                                    <span class="concept-icon">✍️</span>
+                                    <strong>3. RSA-2048 Digital Signatures (Authenticity & Non-Repudiation)</strong>
+                                </div>
+                                <p class="concept-desc">
+                                    <strong>Purpose:</strong> Proves that the official municipal server accepted and signed the record.
+                                </p>
+                                <p class="concept-detail">
+                                    Signed with server's 2048-bit private key (<code>private_key.pem</code>) using PKCS#1 v1.5 padding and verified by anyone holding the public key (<code>public_key.pem</code>).
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Interactive Live Tamper & Verification Lab -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Live Cryptographic Tamper & Verification Lab</h3>
+                            <span class="badge-tag tag-warning">Interactive Viva Demo</span>
+                        </div>
+                        <div class="card-body">
+                            <p class="instruction-text">
+                                Demonstrate to your examiner how cryptographic seals catch database tampering:
+                            </p>
+
+                            <div class="tamper-lab-controls">
+                                <div class="form-group">
+                                    <label>Select Detection Record ID to Test:</label>
+                                    <select id="tamper-target-id" class="form-control">
+                                        <option value="">-- Select Record --</option>
+                                    </select>
+                                </div>
+
+                                <div class="lab-button-row mt-3">
+                                    <button id="btn-lab-verify" class="btn btn-success btn-block" disabled>
+                                        🔍 Verify Current Integrity (SHA-256 & RSA)
+                                    </button>
+                                    <button id="btn-lab-tamper" class="btn btn-danger btn-block mt-2" disabled>
+                                        ⚡ Deliberately Tamper With Record in DB
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Live Verification Output Console -->
+                            <div id="tamper-output-box" class="verification-console mt-4">
+                                <div class="console-header">Cryptographic Verification Console</div>
+                                <div class="console-body" id="tamper-console-log">
+                                    Select a record above and click "Verify Current Integrity".
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 6: VIVA GUIDE & ML PIPELINE -->
+            <section id="tab-viva" class="tab-pane">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Project Architecture & Teacher Viva Quick-Reference</h3>
+                        <span class="badge-tag">Academic Coursework Defense</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="viva-faq-grid">
+                            <div class="faq-card">
+                                <h4>1. How does the Machine Learning Pipeline work?</h4>
+                                <p>
+                                    Raw multi-axis accelerometer (\(a_x, a_y, a_z\)) and gyroscope (\(\omega\)) signals are processed to extract 6 kinematic features:
+                                    <em>accel_mag_mean</em>, <em>accel_mag_max</em>, <em>accel_mag_std</em>, <em>accel_z_delta</em>, <em>accel_jerk</em>, and <em>gyro_mag_mean</em>.
+                                    A <strong>Random Forest Classifier</strong> (100 estimators) trained with stratified cross-validation classifies the event into <strong>Normal Road</strong>, <strong>Speed Breaker</strong>, or <strong>Pothole</strong>.
+                                </p>
+                            </div>
+
+                            <div class="faq-card">
+                                <h4>2. How does DBSCAN Geospatial Clustering work?</h4>
+                                <p>
+                                    We use scikit-learn's <strong>DBSCAN</strong> with the <strong>Haversine metric</strong>, converting coordinates to radians. Distance threshold \(\epsilon = 50\text{ meters}\) and \(min\_samples = 2\).
+                                    This clusters multiple reports from different vehicles driving over the exact same physical pothole into a single consolidated municipal work order.
+                                </p>
+                            </div>
+
+                            <div class="faq-card">
+                                <h4>3. What is the Pavement Distress Index (PDI) formula?</h4>
+                                <p>
+                                    \(PDI = \min(100, (\text{Base} + K_{\text{shock}}) \times C_{\text{factor}} + B_{\text{freq}} + B_{\text{consensus}})\).
+                                    Base weights: Normal = 5, Speed Breaker = 35, Pothole = 70.
+                                    \(K_{\text{shock}}\) scales with peak impact G-force; \(B_{\text{consensus}}\) grants bonus urgency when independent distinct vehicles verify the anomaly.
+                                </p>
+                            </div>
+
+                            <div class="faq-card">
+                                <h4>4. What is the role of Cryptography in this civic project?</h4>
+                                <p>
+                                    <strong>Privacy:</strong> Precise home/work commute GPS coordinates are encrypted using Fernet symmetric encryption.<br>
+                                    <strong>Integrity:</strong> SHA-256 hashes detect any unauthorized database alteration.<br>
+                                    <strong>Authenticity:</strong> RSA-2048 digital signatures prove the municipal server verified and authenticated the telemetry report.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- ML Model Live Metadata Card -->
+                        <div class="card mt-4 inner-card">
+                            <div class="card-header">
+                                <h4 class="card-title text-sm">Active Machine Learning Model Parameters</h4>
+                            </div>
+                            <div class="card-body" id="ml-metadata-container">
+                                <p class="text-muted">Loading ML model metadata...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Record Inspection Modal -->
+    <div id="modal-inspect" class="modal-backdrop hidden">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title">Detection Record Inspection</h3>
+                    <button class="modal-close-btn" id="btn-close-modal">&times;</button>
+                </div>
+                <div class="modal-body" id="modal-inspect-body">
+                    <p>Loading details...</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" id="btn-modal-dismiss">Close</button>
+                    <button class="btn btn-success" id="btn-modal-verify">Verify Cryptography</button>
+                    <button class="btn btn-danger" id="btn-modal-tamper">Simulate Tamper</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts: Leaflet, Chart.js, Application JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    
+    <script src="{{ url_for('static', filename='js/sensors.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/map.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
